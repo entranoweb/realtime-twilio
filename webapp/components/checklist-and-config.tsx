@@ -49,6 +49,20 @@ export default function ChecklistAndConfig({
     appendedTwimlUrl && currentVoiceUrl && appendedTwimlUrl !== currentVoiceUrl;
 
   useEffect(() => {
+    const checks = [
+      hasCredentials,
+      phoneNumbers.length > 0,
+      localServerUp,
+      publicUrlAccessible,
+      !!publicUrl && !isWebhookMismatch,
+      !!currentNumberSid // Make sure a phone number is selected
+    ];
+    
+    const passed = checks.every(Boolean);
+    setAllChecksPassed(passed);
+  }, [hasCredentials, phoneNumbers.length, localServerUp, publicUrlAccessible, publicUrl, isWebhookMismatch, currentNumberSid]);
+
+  useEffect(() => {
     let polling = true;
 
     const pollChecks = async () => {
@@ -65,13 +79,14 @@ export default function ChecklistAndConfig({
         const numbersData = await res.json();
         if (Array.isArray(numbersData) && numbersData.length > 0) {
           setPhoneNumbers(numbersData);
-          // If currentNumberSid not set or not in the list, use first
-          const selected =
-            numbersData.find((p: PhoneNumber) => p.sid === currentNumberSid) ||
-            numbersData[0];
-          setCurrentNumberSid(selected.sid);
-          setCurrentVoiceUrl(selected.voiceUrl || "");
-          setSelectedPhoneNumber(selected.friendlyName || "");
+          // Only update if we have a currentNumberSid
+          if (currentNumberSid) {
+            const selected = numbersData.find((p: PhoneNumber) => p.sid === currentNumberSid);
+            if (selected) {
+              setCurrentVoiceUrl(selected.voiceUrl || "");
+              setSelectedPhoneNumber(selected.friendlyName || "");
+            }
+          }
         }
 
         // 3. Check local server & public URL
@@ -116,7 +131,8 @@ export default function ChecklistAndConfig({
         }),
       });
       if (!res.ok) throw new Error("Failed to update webhook");
-      setCurrentVoiceUrl(appendedTwimlUrl);
+      const data = await res.json();
+      setCurrentVoiceUrl(data.voiceUrl || appendedTwimlUrl);
     } catch (err) {
       console.error(err);
     } finally {
@@ -249,18 +265,24 @@ export default function ChecklistAndConfig({
         field: (
           <div className="flex items-center gap-2 w-full">
             <div className="flex-1">
-              <Input value={currentVoiceUrl} disabled className="w-full" />
+              <Input value={appendedTwimlUrl} disabled />
             </div>
             <div className="flex-1">
               <Button
+                variant="outline"
                 onClick={updateWebhook}
-                disabled={webhookLoading}
+                disabled={
+                  webhookLoading ||
+                  !currentNumberSid ||
+                  !appendedTwimlUrl ||
+                  currentVoiceUrl === appendedTwimlUrl
+                }
                 className="w-full"
               >
                 {webhookLoading ? (
                   <Loader2 className="mr-2 h-4 animate-spin" />
                 ) : (
-                  "Update Webhook"
+                  "Update webhook"
                 )}
               </Button>
             </div>
@@ -272,78 +294,45 @@ export default function ChecklistAndConfig({
     hasCredentials,
     phoneNumbers,
     currentNumberSid,
-    localServerUp,
     publicUrl,
+    localServerUp,
     publicUrlAccessible,
-    currentVoiceUrl,
-    isWebhookMismatch,
-    appendedTwimlUrl,
     webhookLoading,
     ngrokLoading,
-    setSelectedPhoneNumber,
+    appendedTwimlUrl,
+    isWebhookMismatch,
   ]);
 
-  useEffect(() => {
-    setAllChecksPassed(checklist.every((item) => item.done));
-  }, [checklist]);
-
-  useEffect(() => {
-    if (!ready) {
-      checkNgrok();
-    }
-  }, [localServerUp, ready]);
-
-  useEffect(() => {
-    if (!allChecksPassed) {
-      setReady(false);
-    }
-  }, [allChecksPassed, setReady]);
-
-  const handleDone = () => setReady(true);
-
   return (
-    <Dialog open={!ready}>
-      <DialogContent className="w-full max-w-[800px]">
+    <Dialog open={!ready} onOpenChange={setReady}>
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Setup Checklist</DialogTitle>
           <DialogDescription>
-            This sample app requires a few steps before you get started
+            Complete these steps to start using the app
           </DialogDescription>
         </DialogHeader>
-
-        <div className="mt-4 space-y-0">
+        <div className="space-y-6">
           {checklist.map((item, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 py-2"
-            >
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-1">
-                  {item.done ? (
-                    <CheckCircle className="text-green-500" />
-                  ) : (
-                    <Circle className="text-gray-400" />
-                  )}
-                  <span className="font-medium">{item.label}</span>
-                </div>
-                {item.description && (
-                  <p className="text-sm text-gray-500 ml-8">
-                    {item.description}
-                  </p>
+            <div key={i} className="space-y-2">
+              <div className="flex items-center gap-2">
+                {item.done ? (
+                  <CheckCircle className="text-green-500 w-4 h-4" />
+                ) : (
+                  <Circle className="text-gray-400 w-4 h-4" />
                 )}
+                <span className="font-medium">{item.label}</span>
               </div>
-              <div className="flex items-center mt-2 sm:mt-0">{item.field}</div>
+              <div className="text-sm text-gray-500 ml-6">
+                {item.description}
+              </div>
+              {item.field && <div className="ml-6">{item.field}</div>}
             </div>
           ))}
         </div>
-
-        <div className="mt-6 flex flex-col sm:flex-row sm:justify-end">
-          <Button
-            variant="outline"
-            onClick={handleDone}
-            disabled={!allChecksPassed}
-          >
-            Let's go!
+        <div className="flex justify-end">
+          <Button onClick={() => setReady(true)} disabled={!allChecksPassed}>
+            Done
           </Button>
         </div>
       </DialogContent>

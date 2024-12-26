@@ -19,7 +19,8 @@ const CallInterface = () => {
 
   useEffect(() => {
     if (allConfigsReady && !ws) {
-      const newWs = new WebSocket("ws://localhost:8081/logs");
+      const wsUrl = "wss://0fd9-2401-4900-1c9a-e819-2db5-2a39-18e7-94e.ngrok-free.app/logs";
+      const newWs = new WebSocket(wsUrl);
 
       newWs.onopen = () => {
         console.log("Connected to logs websocket");

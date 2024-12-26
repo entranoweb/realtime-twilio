@@ -1,109 +1,100 @@
-# OpenAI Realtime API with Twilio Quickstart
+# Real-time Twilio Voice Assistant
 
-Combine OpenAI's Realtime API and Twilio's phone calling capability to build an AI calling assistant.
+A real-time voice assistant powered by Twilio and OpenAI, featuring WebSocket communication for live transcription and responses.
 
-<img width="1728" alt="Screenshot 2024-12-18 at 4 59 30 PM" src="https://github.com/user-attachments/assets/d3c8dcce-b339-410c-85ca-864a8e0fc326" />
+## Features
 
-## Quick Setup
+- Real-time voice call handling with OpenAI integration
+- Live transcription and AI responses via WebSocket
+- Easy setup wizard with configuration checklist
+- Twilio webhook integration
+- Modern UI built with Next.js and Tailwind CSS
 
-Open three terminal windows:
+## System Requirements
 
-| Terminal | Purpose                       | Quick Reference (see below for more) |
-| -------- | ----------------------------- | ------------------------------------ |
-| 1        | To run the `webapp`           | `npm run dev`                        |
-| 2        | To run the `websocket-server` | `npm run dev`                        |
-| 3        | To run `ngrok`                | `ngrok http 8081`                    |
+- Node.js 18+
+- npm or yarn
+- ngrok for local development
 
-Make sure all vars in `webapp/.env` and `websocket-server/.env` are set correctly. See [full setup](#full-setup) section for more.
+## Project Structure
 
-## Overview
-
-This repo implements a phone calling assistant with the Realtime API and Twilio, and had two main parts: the `webapp`, and the `websocket-server`.
-
-1. `webapp`: NextJS app to serve as a frontend for call configuration and transcripts
-2. `websocket-server`: Express backend that handles connection from Twilio, connects it to the Realtime API, and forwards messages to the frontend
-<img width="1514" alt="Screenshot 2024-12-20 at 10 32 40 AM" src="https://github.com/user-attachments/assets/61d39b88-4861-4b6f-bfe2-796957ab5476" />
-
-Twilio uses TwiML (a form of XML) to specify how to handle a phone call. When a call comes in we tell Twilio to start a bi-directional stream to our backend, where we forward messages between the call and the Realtime API. (`{{WS_URL}}` is replaced with our websocket endpoint.)
-
-```xml
-<!-- TwiML to start a bi-directional stream-->
-
-<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Connected</Say>
-  <Connect>
-    <Stream url="{{WS_URL}}" />
-  </Connect>
-  <Say>Disconnected</Say>
-</Response>
+```
+realtime-twilio/
+├── webapp/               # Next.js frontend application
+│   ├── app/             # Next.js app router
+│   ├── components/      # React components
+│   └── lib/            # Utility functions
+│
+└── websocket-server/    # TypeScript WebSocket server
+    └── src/            # Server source code
 ```
 
-We use `ngrok` to make our server reachable by Twilio.
+## Setup Instructions
 
-### Life of a phone call
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/entranoweb/realtime-twilio.git
+   cd realtime-twilio
+   ```
 
-Setup
+2. Install dependencies:
+   ```bash
+   # Install webapp dependencies
+   cd webapp
+   npm install
 
-1. We run ngrok to make our server reachable by Twilio
-1. We set the Twilio webhook to our ngrok address
-1. Frontend connects to the backend (`wss://[your_backend]/logs`), ready for a call
+   # Install websocket server dependencies
+   cd ../websocket-server
+   npm install
+   ```
 
-Call
+3. Configure environment variables:
 
-1. Call is placed to Twilio-managed number
-1. Twilio queries the webhook (`http://[your_backend]/twiml`) for TwiML instructions
-1. Twilio opens a bi-directional stream to the backend (`wss://[your_backend]/call`)
-1. The backend connects to the Realtime API, and starts forwarding messages:
-   - between Twilio and the Realtime API
-   - between the frontend and the Realtime API
+   **webapp/.env:**
+   ```
+   TWILIO_ACCOUNT_SID="your_account_sid"
+   TWILIO_AUTH_TOKEN="your_auth_token"
+   ```
 
-### Function Calling
+   **websocket-server/.env:**
+   ```
+   OPENAI_API_KEY="your_openai_key"
+   PUBLIC_URL="your_ngrok_url"
+   ```
 
-This demo mocks out function calls so you can provide sample responses. In reality you could handle the function call, execute some code, and then supply the response back to the model.
+4. Start the development servers:
 
-## Full Setup
+   ```bash
+   # Start websocket server
+   cd websocket-server
+   npm run dev
 
-1. Make sure your [auth & env](#detailed-auth--env) is configured correctly.
+   # In another terminal, start webapp
+   cd webapp
+   npm run dev
+   ```
 
-2. Run webapp.
+5. Start ngrok:
+   ```bash
+   ngrok http 8081
+   ```
 
-```shell
-cd webapp
-npm install
-npm run dev
-```
+6. Update the `PUBLIC_URL` in websocket-server/.env with your ngrok URL
 
-3. Run websocket server.
+7. Configure Twilio webhook:
+   - Go to Twilio Console > Phone Numbers > Manage > Active Numbers
+   - Set the webhook URL to your ngrok URL + "/twiml"
 
-```shell
-cd websocket-server
-npm install
-npm run dev
-```
+## Development
 
-## Detailed Auth & Env
+- Frontend runs on http://localhost:3000
+- WebSocket server runs on http://localhost:8081
+- Use ngrok for exposing the webhook endpoint
 
-### OpenAI & Twilio
+## License
 
-Set your credentials in `webapp/.env` and `websocket-server` - see `webapp/.env.example` and `websocket-server.env.example` for reference.
+MIT
 
-### Ngrok
+## Contributing
 
-Twilio needs to be able to reach your websocket server. If you're running it locally, your ports are inaccessible by default. [ngrok](https://ngrok.com/) can make them temporarily accessible.
-
-We have set the `websocket-server` to run on port `8081` by default, so that is the port we will be forwarding.
-
-```shell
-ngrok http 8081
-```
-
-Make note of the `Forwarding` URL. (e.g. `https://54c5-35-170-32-42.ngrok-free.app`)
-
-### Websocket URL
-
-Your server should now be accessible at the `Forwarding` URL when run, so set the `PUBLIC_URL` in `websocket-server/.env`. See `websocket-server/.env.example` for reference.
-
-# Additional Notes
-
-This repo isn't polished, and the security practices leave some to be desired. Please only use this as reference, and make sure to audit your app with security and engineering before deploying!
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
